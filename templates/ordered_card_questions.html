@@ -1,0 +1,39 @@
+{% extends "layout.html" %}
+{% block body %}
+
+    <script>
+        $(document).ready(function() {
+            $("#items").sortable({
+                update: function() {
+                    var items = $(this).sortable('toArray');
+                    console.log(items)
+                    $.ajax('/update/ordered_item/card/{{ card_id }}', {
+                        type: 'POST',
+                        data: {items: items}
+                    })
+                }
+            });
+        } );
+    </script>
+
+    <ul id="items" class="sortableContainer">
+        {% for item in items %} 
+        <li id="{{ item.id }}" class="sortable">stuff {{ item.item }}</li>
+        {% endfor %}
+    </ul>
+
+    <div class="row panel-body">
+    <h2>Add a Multiple Choice</h2>
+    <form action="/create/ordered_item/card/{{ card_id }}" method="post" class="choiceForm">
+        <div class="form-group">
+            <div class="form-group fieldChoice">
+                <label for="item">Create new item</label>
+                <input type="text" name="item" id="item" class="form-control" />
+            </div>
+        </div>
+        <div class="form-group">
+            <button type="submit" class="saveButton btn btn-primary">Create</button>
+        </div>
+    </form>
+    </div>
+{% endblock %}

@@ -7,12 +7,14 @@ create table cards (
   known boolean default 0
 );
 
+-- Represents a category of cards
 drop table if exists card_types;
 CREATE TABLE "card_types" (
 	"id"	INTEGER PRIMARY KEY AUTOINCREMENT,
 	"card_name"	TEXT
 );
 
+-- Represents a multiple choice question
 DROP TABLE IF EXISTS card_multiple_choices;
 CREATE TABLE "card_multiple_choices" (
   "id" INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -22,7 +24,7 @@ CREATE TABLE "card_multiple_choices" (
   FOREIGN KEY (card_id) REFERENCES cards(id)
 );
 
--- Represents a test for a given category
+-- Represents a test composed of multiple choice questions
 -- There can be multiple tests for a given category
 -- Currently a test can only be composed of cards from 1 category
 DROP TABLE IF EXISTS test_multiple_choice;
@@ -80,4 +82,39 @@ CREATE TABLE "test_multiple_choice_results" (
   "total_incorrect" INTEGER NOT NULL,
   "percentage" REAL NOT NULL,
   FOREIGN KEY (test_multiple_choice_id) REFERENCES test_multiple_choice(id)
+)
+
+------------------------------------------------------------------------------
+-- ORDERED QUESTION TABLES
+------------------------------------------------------------------------------
+
+-- Ordered items for a specific card
+DROP TABLE IF EXISTS ordered_items;
+CREATE TABLE "ordered_items" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "card_id" INTEGER,
+  "item" TEXT NOT NULL,
+  "position" INTEGER,
+  FOREIGN KEY (card_id) REFERENCES cards(id)
+)
+
+-- Test on a given card category
+-- Represents a test and links a card type to a test
+DROP TABLE IF EXISTS ordered_items_tests;
+CREATE TABLE "ordered_items_tests" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "type_id" INTEGER,
+  "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+  FOREIGN KEY (type_id) REFERENCES card_types(id)
+)
+
+-- Questions for an ordered item test
+-- links ordered items to tests
+DROP TABLE IF EXISTS ordered_items_questions;
+CREATE TABLE "ordered_items_questions" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "test_id" INTEGER NOT NULL,
+  "card_id" INTEGER NOT NULL,
+  FOREIGN KEY (test_id) REFERENCES ordered_items_tests(id),
+  FOREIGN KEY (card_id) REFERENCES cards(id)
 )

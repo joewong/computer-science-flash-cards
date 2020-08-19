@@ -412,48 +412,13 @@ def test_results(card_name):
     tests = db.execute(query, [card_name])
     return render_template('multiple_choice_card_tests.html', tests=tests, card_name=card_name)
 
-
 @app.route('/update/ordered/card/<card_id>')
 def update_ordered(card_id):
     if not session.get('logged_in'):
         return redirect(url_for('login')) 
     db = get_db() 
-    items_query = """
-    SELECT id, card_id, item, position
-    FROM ordered_items
-    WHERE card_id = ?
-    ORDER BY position
-    """
-    items = db.execute(items_query, [card_id])
-    return render_template('ordered_card_questions.html', items=items, card_id=card_id)
 
-@app.route('/create/ordered_item/card/<card_id>', methods=['POST'])
-def create_ordered(card_id):
-    if not session.get('logged_in'):
-        return redirect(url_for('login')) 
-    db = get_db()
-    query = """
-    INSERT INTO ordered_items (card_id, item, position)
-    VALUES (?,?,?)
-    """ 
-    db.execute(query, [card_id, request.form['item'], 0])
-    db.commit()
-    return redirect('/update/ordered/card/'+str(card_id))
-
-@app.route('/update/ordered_item/card/<card_id>', methods=['POST'])
-def update_ordered_ordering(card_id):
-    db = get_db()
-    update_query = """
-    UPDATE ordered_items set position = ? WHERE id = ?
-    """
-    data = request.form
-    data_items = data.getlist('items[]')
-    counter = 0
-    for item in data_items:
-        db.execute(update_query,[counter,item])
-        counter += 1
-    db.commit()
-    return ""
+    return render_template('ordered_card_questions.html')
 
 
 @app.route('/clear_knowns/card/<card_type>')

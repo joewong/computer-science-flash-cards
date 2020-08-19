@@ -2,7 +2,7 @@
 {% block body %}
 
     <div class="well editPanel">
-        <h2>Add a Card</h2>
+        <h2>Cards and Questions</h2>
         <form action="{{ url_for('add_card') }}" method="post" class="cardForm">
             <div class="form-group">
                 {% for card_type in card_types %}
@@ -32,10 +32,10 @@
     <div class="row panel-body">
     <table class="table table-bordered">
             <tr>
-                <td>Edit</td>
-                <td>Known</td>
-                <td>Card Details</td>
-                <td>Update Multiple Choices</td>
+                <td><b>Edit</b></td>
+                <td><b>Known</b></td>
+                <td><b>Card Details</b></td>
+                <td colspan="2"><b>Question Types</b></td>
             </tr>
         {% for card in cards %}
             <tr>
@@ -49,16 +49,19 @@
                 </td>
                 <td class="cardContent">
                     <h4>
-                        {{ card.front }}
+                        Front: {{ card.front }}
                     </h4>
                     {% if card.type == 1 %}
-                        {{ card.back|replace("\n", "<br />")|safe }}
+                        Back: {{ card.back|replace("\n", "<br />")|safe }}
                     {% else %}
-                        <pre><code>{{ card.back|escape }}</code></pre>
+                        Back: <pre><code>{{ card.back|escape }}</code></pre>
                     {% endif %}
                 </td>
                 <td>
-                    <a href="/update/multiple_choices/card/{{ card.id }}" class="btn btn-primary" role="button">Update</a> 
+                    <a href="/update/multiple_choices/card/{{ card.id }}" class="btn btn-primary" role="button">Multiple Choice</a> 
+                    <a href="/update/ordered/card/{{ card.id }}" class="btn btn-primary" role="button">Ordered</a> 
+                    <a href="/update/picture/card/{{ card.id }}" class="btn btn-primary" role="button">Pictures</a> 
+                    <a href="/update/tree/card/{{ card.id }}" class="btn btn-primary" role="button">Tree</a> 
                 </td>
             </tr>
         {% else %}
