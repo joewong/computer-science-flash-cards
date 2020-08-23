@@ -141,7 +141,161 @@ def add_card():
     flash('New card was successfully added.')
     return redirect(url_for('cards'))
 
-@app.route('/test/create/<card_name>')
+@app.route('/create/ordered/test/<card_name>')
+def create_ordered_test(card_name):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    db = get_db()
+    create_test_query = """
+    INSERT INTO ordered_items_tests (type_id)
+    SELECT id 
+    FROM card_types
+    WHERE card_name = ? 
+    """
+    test = db.execute(create_test_query, [card_name])
+    db.commit() 
+    test_id = test_result.lastrowid
+
+    # create upto 10 questions and insert them into the questions table 
+    question_cards_query = """
+    INSERT INTO ordered_items_questions (test_id, card_id)
+    SELECT ordered_items_tests.id, cards.id
+    FROM cards, card_types, ordered_items_tests
+    WHERE cards.type = card_types.id
+    AND card_types.id = ordered_items_tests.type_id
+    AND ordered_items_tests.id = ?
+    ORDER BY RANDOM()
+    LIMIT 10
+    """
+    db.execute(question_cards_query, [test_id])
+    db.commit()
+
+    return redirect('/sit/ordered/test' + str(test_id)) 
+
+@app.route('/sit/ordered/test/<test_id>')
+def sit_ordered_test(test_id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    db = get_db()
+
+    cards_name_query = """
+    SELECT card_name
+    FROM ordered_items_tests, card_types
+    WHERE card_types.id = ordered_items_tests.type_id
+    AND ordered_items_tests.id = ?
+    """
+    card_name = db.execute(cards_name_query, [test_id])
+
+    cards_query = """
+    SELECT card_id as card_id, front
+    FROM ordered_items_questions
+    INNER JOIN cards ON ordered_items_questions.card_id = cards.id
+    WHERE test_id = ? 
+    """
+    cards = db.execute(cards_query, [test_id])
+
+    questions_query = """
+    SELECT 
+        ordered_items.card_id as card_id, 
+        ordered_items.id as id,
+        ordered_items.item as item
+    FROM 
+        ordered_items_questions
+    INNER JOIN
+        ordered_items 
+    ON 
+        ordered_items_questions.card_id = ordered_items.card_id
+    WHERE 
+        ordered_items_questions.test_id = ?
+    ORDER BY RANDOM()
+    """
+    questions_results = db.execute(questions_query, [test_id])
+    questions = {}
+    for question in questions_results:
+        if question[0] not in questions:
+            card = question[0]
+            questions[card] = []
+        questions[question[0]].append({'id': question[1], 'item': question[2]})
+    total_questions = len(questions)
+    return render_template('ordered_test.html', test_id=test_id, cards=cards, questions=questions, card_name=card_name,total_questions=total_questions) 
+
+
+@app.route('/submit/ordered/test/<test_id>', methods=['POST'])
+def submit_ordered_test(test_id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    db = get_db()
+    cards_query = """
+    SELECT card_id 
+    FROM ordered_items_questions
+    WHERE test_id = ?
+    """
+    cards = db.execute(cards_query, [test_id])
+
+    add_answer_query = """
+    INSERT INTO ordered_items_answers (test_id, item_id, position)
+    VALUES(?,?,?)
+    """
+
+    correct_positions_query = """
+    SELECT ordered_items.id as item_id, position 
+    FROM ordered_items
+    INNER JOIN ordered_items_questions 
+    ON ordered_items_questions.card_id = ordered_items.card_id
+    WHERE ordered_items_questions.test_id = ?
+    """
+    correct_positions = db.execute(correct_positions_query, [test_id])
+
+    correct_positions_dict = {}
+    for pos in correct_positions:
+        correct_positions_dict[int(pos[0])] = pos[1]
+
+    data = request.form
+    data_items = {}
+    # insert answers and check positions
+    total_correct = 0
+    total_incorrect = 0
+    for card in cards:
+        items = data.getlist('items[' + str(card[0])+ '][]')
+        position = 0
+        is_correct = True
+        for item_id in items:
+            if int(position) != int(correct_positions_dict[int(item_id)]):
+                is_correct = False
+            db.execute(add_answer_query, [test_id, item_id, position])
+            position += 1
+        if is_correct:
+            total_correct += 1
+        else:
+            total_incorrect += 1
+        data_items[card[0]] = (data.getlist('items[' + str(card[0]) + '][]'))
+
+    db.commit()
+
+    # insert results
+    results_query = """
+    INSERT INTO test_results (ordered_items_id, total_correct, total_incorrect, percentage)
+    VALUES (?,?,?,?)
+    """
+    if total_correct == 0:
+        percentage = 0.0
+    else:
+        percentage = (total_correct/(total_correct + total_incorrect)) * 100
+    db.execute(results_query, [test_id, total_correct, total_incorrect, percentage])
+    db.commit()
+
+    return ""
+
+@app.route('/test/ordered/result/<test_id>', methods=['POST'])
+def ordered_test_result(test_id):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    # get all tests
+    # write order of items to answers table
+    # calculate results
+    return ""
+
+@app.route('/create/multiple_choice/test/<card_name>')
 def run_test(card_name):
     if not session.get('logged_in'):
         return redirect(url_for('login'))
@@ -292,8 +446,8 @@ def test_submit_answers(test_id):
     db.commit()
     
     write_results_query = """
-    INSERT INTO test_multiple_choice_results(
-        test_multiple_choice_id, total_correct, total_incorrect, percentage) 
+    INSERT INTO test_results(
+        multiple_choice_id, total_correct, total_incorrect, percentage) 
     VALUES (?,?,?,?)
     """ 
     if (correct_answers == 0 or total_answers == 0):
@@ -319,15 +473,15 @@ def test_result(test_id):
     db = get_db() 
     summary_query = """
     SELECT 
-        test_multiple_choice_results.created_time as created_time,
-        test_multiple_choice_results.total_correct as total_correct,
-        test_multiple_choice_results.total_incorrect as total_incorrect,
-        test_multiple_choice_results.percentage as percentage,
+        test_results.created as created_time,
+        test_results.total_correct as total_correct,
+        test_results.total_incorrect as total_incorrect,
+        test_results.percentage as percentage,
         (total_correct + total_incorrect) as total_questions
     FROM
-        test_multiple_choice_results
+        test_results
     WHERE
-        test_multiple_choice_results.test_multiple_choice_id = ?
+        test_results.multiple_choice_id = ?
     """
     summary_cursor = db.execute(summary_query, [test_id])
     summary = summary_cursor.fetchone()

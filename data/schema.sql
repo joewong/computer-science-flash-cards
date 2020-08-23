@@ -14,6 +14,18 @@ CREATE TABLE "card_types" (
 	"card_name"	TEXT
 );
 
+-- General cards test which is made of smaller question tests
+DROP TABLE IF EXISTS cards_tests;
+CREATE TABLE "cards_tests" (
+  "id"	INTEGER PRIMARY KEY AUTOINCREMENT,
+  "multiple_choice_test_id" INTEGER,
+  "ordered_test_id" INTEGER,
+  "tree_test_id" INTEGER,
+  "test_type" TEXT,
+  FOREIGN KEY (multiple_choice_test_id) REFERENCES test_multiple_choice(id),
+  FOREIGN KEY (ordered_test_id) REFERENCES ordered_items_tests(id)
+);
+
 -- Represents a multiple choice question
 DROP TABLE IF EXISTS card_multiple_choices;
 CREATE TABLE "card_multiple_choices" (
@@ -72,18 +84,6 @@ CREATE TABLE "test_multiple_choice_answers" (
   FOREIGN KEY (card_id) REFERENCES cards(id)
 )
 
--- Represents the results from a test
-DROP TABLE IF EXISTS test_multiple_choice_results;
-CREATE TABLE "test_multiple_choice_results" (
-  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
-  "created_time" TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
-  "test_multiple_choice_id" INTEGER,
-  "total_correct" INTEGER NOT NULL,
-  "total_incorrect" INTEGER NOT NULL,
-  "percentage" REAL NOT NULL,
-  FOREIGN KEY (test_multiple_choice_id) REFERENCES test_multiple_choice(id)
-)
-
 ------------------------------------------------------------------------------
 -- ORDERED QUESTION TABLES
 ------------------------------------------------------------------------------
@@ -117,4 +117,34 @@ CREATE TABLE "ordered_items_questions" (
   "card_id" INTEGER NOT NULL,
   FOREIGN KEY (test_id) REFERENCES ordered_items_tests(id),
   FOREIGN KEY (card_id) REFERENCES cards(id)
+)
+
+-- Answers for a given ordered item test
+DROP TABLE IF EXISTS ordered_items_answers;
+CREATE TABLE "ordered_items_answers" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+  "item_id" INTEGER,
+  "test_id" INTEGER,
+  "position" INTEGER,
+  FOREIGN KEY (item_id) REFERENCES ordered_items (id),
+  FOREIGN KEY (test_id) REFERENCES ordered_items_tests (id)
+)
+
+------------------------------------------------------------------------------
+-- TEST TABLES
+------------------------------------------------------------------------------
+
+-- Represents the results from a test
+DROP TABLE IF EXISTS test_results;
+CREATE TABLE "test_results" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "created" TIMESTAMP DEFAULT CURRENT_TIMESTAMP, 
+  "multiple_choice_id" INTEGER,
+  "ordered_items_id" INTEGER,
+  "total_correct" INTEGER NOT NULL,
+  "total_incorrect" INTEGER NOT NULL,
+  "percentage" REAL NOT NULL,
+  FOREIGN KEY (multiple_choice_id) REFERENCES test_multiple_choice(id),
+  FOREIGN KEY (ordered_items_id) REFERENCES ordered_items_tests(id)
 )
