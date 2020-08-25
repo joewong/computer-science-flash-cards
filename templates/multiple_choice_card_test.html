@@ -1,24 +1,72 @@
 {% extends "layout.html" %}
 {% block body %}
 
-    <form action="/test/submit-answers/{{ test_id }}" method="post" class="">
-        {% for question in questions %} 
-        <div>
-            <div><h2>{{ question.front }}</h2></div>
-            <div>
-                <div>
-                    <div class="form-group">
-                        {% for choice in choices[question.card_id] %}
-                        <div><input type="radio" value="{{ choice['mcId'] }}" name="{{ question.card_id }}"/> {{ choice['choice'] }} </div>
-                        {% endfor %}
+    <form action="#" id="question-form">
+    <div id="card-questions" class="col-xs-8 col-xs-offset-2 carousel" data-interval="false" data-ride="false">
+        <div class="carousel-inner" role="listbox">
+            {% set count = namespace(value=1) %}
+            {% for card in cards %}
+                <div class="item {% if count.value == 1 %}active{% endif %}">
+                    <div class="panel panel-default cardFront">
+                        <div class="panel-body">
+                            <div class="alignContainer">
+                                <div class="alignMiddle frontText">
+                                    <h2 class="frontText">{{ card.front }}</h2> <br />
+                                        {% for question in questions[card.card_id] %} 
+                                            <div class="row">
+                                                <div class="col-lg-6">
+                                                    <div class="input-group">
+                                                    <span class="input-group-addon" data-toggle="buttons">
+                                                      <input type="checkbox" aria-label="..." value="{{ question['id'] }}" name="{{ card.card_id }}">
+                                                    </span>
+                                                    <input type="text" class="form-control" disabled aria-label="..." value="{{ question['choice'] }}">
+                                                    </div>
+                                                </div>
+                                            </div><br />
+                                        {% endfor %}
+                                    <script>
+                                        items.push("{{ card.card_id }}");
+                                    </script>
+                                </div>
+                            </div>
+                        </div>
+                    </div> 
+                    <div>
+                        {% if count.value > 1 %}
+                        <a class="btn btn-primary btn-lg" href="#card-questions" role="button" data-slide="prev"><i class="fa fa-arrow-left"></i> previous</a>
+                        {% else %}
+                        <a class="btn btn-primary btn-lg disabled" href="#" role="button" aria-disabled="true"><i class="fa fa-arrow-left"></i> previous</a>
+                        {% endif %}
+                        {% if total_questions > count.value %}
+                        <a class="btn btn-primary btn-lg" href="#card-questions" role="button" data-slide="next">next <i class="fa fa-arrow-right"></i></a>
+                        {% else %}
+                        <a class="btn btn-primary btn-lg disabled" href="#" aria-disabled="true" role="button" data-slide="next">next <i class="fa fa-arrow-right"></i></a>
+                        {% endif %}
+                        {% if count.value == total_questions %}
+                        <a href="javascript:submitResults();" class="btn btn-primary btn-lg">submit</a>
+                        {% else %}
+                        <a href="#" class="btn btn-primary btn-lg disabled" aria-disabled="true">submit</a>
+                        {% endif %}
                     </div>
-                </div>
-            </div>
+                    {% set count.value = count.value + 1 %} 
+                </div> 
+            {% else %}
+                <div>NO CARDS</div>
+            {% endfor %}
         </div>
-        {% endfor %}
-        <div class="form-group">
-            <button type="submit" class="saveButton btn btn-lg btn-primary">Submit</button>
-        </div>
+    </div>
     </form>
 
+    <script>
+        function submitResults() {
+            dataItems = {};
+            $.ajax('/test/submit-answers/{{ test_id }}', {
+                type: 'POST',
+                data: {items: $('#question-form').serializeArray()},
+                success: function(data, textStatus) {
+                    window.location.replace("/test/multiple_choice/result/{{ test_id }}");
+                }
+            }); 
+        }
+    </script>
 {% endblock %}

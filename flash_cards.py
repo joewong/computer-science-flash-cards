@@ -152,7 +152,7 @@ def create_ordered_test(card_name):
     FROM card_types
     WHERE card_name = ? 
     """
-    test = db.execute(create_test_query, [card_name])
+    test_result = db.execute(create_test_query, [card_name])
     db.commit() 
     test_id = test_result.lastrowid
 
@@ -170,7 +170,7 @@ def create_ordered_test(card_name):
     db.execute(question_cards_query, [test_id])
     db.commit()
 
-    return redirect('/sit/ordered/test' + str(test_id)) 
+    return redirect('/sit/ordered/test/' + str(test_id)) 
 
 @app.route('/sit/ordered/test/<test_id>')
 def sit_ordered_test(test_id):
@@ -213,8 +213,7 @@ def sit_ordered_test(test_id):
     questions = {}
     for question in questions_results:
         if question[0] not in questions:
-            card = question[0]
-            questions[card] = []
+            questions[question[0]] = []
         questions[question[0]].append({'id': question[1], 'item': question[2]})
     total_questions = len(questions)
     return render_template('ordered_test.html', test_id=test_id, cards=cards, questions=questions, card_name=card_name,total_questions=total_questions) 
@@ -362,7 +361,7 @@ def sit_test(test_id):
         return redirect(url_for('login')) 
     db = get_db()
 
-    question_query = """
+    card_query = """
     SELECT 
         cards.id as card_id,
         cards.front as front
@@ -375,7 +374,7 @@ def sit_test(test_id):
         AND test_multiple_choice_cards.test_multiple_choice_id = test_multiple_choice.id 
         AND test_multiple_choice.id = ?
     """
-    questions = db.execute(question_query, [test_id])
+    cards = db.execute(card_query, [test_id])
 
     choices_query = """
     SELECT
@@ -395,19 +394,19 @@ def sit_test(test_id):
         AND test_multiple_choice_cards.test_multiple_choice_id = test_multiple_choice.id 
         AND test_multiple_choice.id = ?
     """
-    choices_results = db.execute(choices_query, [test_id])
-    
-    choices = {}
-    card = None
-    for choice in choices_results:
-        choice_dict = { "cardId" : choice[0], "choice" : choice[1], "mcId" : choice[2] }
-        if card != choice[0]:
-            choices[choice[0]] = [choice_dict]
-        else:
-            choices[card].append(choice_dict)
-        card = choice[0]
+    question_results = db.execute(choices_query, [test_id])
+    questions = {}
+    for question in question_results:
+        if question[0] not in questions:
+            questions[question[0]] = []
+        questions[question[0]].append({ 
+            "cardId" : question[0], 
+            "choice" : question[1], 
+            "id"   : question[2] 
+        })
 
-    return render_template('multiple_choice_card_test.html', test_id=test_id, questions=questions, choices=choices)
+    return render_template('multiple_choice_card_test.html', 
+        test_id=test_id, cards=cards, questions=questions, total_questions=len(questions))
 
 @app.route('/test/submit-answers/<test_id>', methods=['POST'])
 def test_submit_answers(test_id):
@@ -415,6 +414,23 @@ def test_submit_answers(test_id):
         return redirect(url_for('login'))
 
     db = get_db()
+    
+    # get form data
+    test_question_query = """
+    SELECT COUNT(card_id)
+    FROM test_multiple_choice_cards
+    WHERE test_multiple_choice_id = ?
+    """
+    test_question_cur = db.execute(test_question_query, [test_id])
+    question_total = test_question_cur.fetchone()
+    test_questions = {}
+    for counter in range(question_total[0]):
+        name = request.form.getlist('items['+str(counter)+'][name]')
+        value = request.form.getlist('items['+str(counter)+'][value]')
+        test_questions[int(name[0])] = int(value[0])
+        counter += 1
+
+    # get questions
     questions_query = """
     SELECT
         test_multiple_choice_cards.card_id as card_id,
@@ -437,7 +453,7 @@ def test_submit_answers(test_id):
     VALUES (?,?,?,?)
     """
     for question in questions:
-        selected_answer = request.form[str(question[0])]
+        selected_answer = test_questions[question[0]] 
         correct_answer = question[1]
         if (int(selected_answer) == int(correct_answer)):
             correct_answers += 1
@@ -463,10 +479,10 @@ def test_submit_answers(test_id):
     ]
     db.execute(write_results_query, results)
     db.commit()
-    
-    return redirect('/test/result/' + str(test_id))
+
+    return ""
      
-@app.route('/test/result/<test_id>')
+@app.route('/test/multiple_choice/result/<test_id>')
 def test_result(test_id):
     if not session.get('logged_in'):
         return redirect(url_for('login')) 
@@ -856,4 +872,4 @@ def logout():
 
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0')
+    app.run(host='0.0.0.0', threaded=True)
