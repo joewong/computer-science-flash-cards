@@ -10,9 +10,6 @@
                 <td> Edit Card </td>
                 <td> Take a Test </td>
                 <td> View Cards </td>
-                <td> Known </td>
-                <td> Unknown </td>
-                <td> Clear Knowns </td>
                 <td> Recommendations </td>
                 <td> Delete Card</td>
             </tr>
@@ -30,15 +27,6 @@
                 </td>
                 <td>
                     <a href="/filter_cards/{{ card_type.card_name }}" class="btn btn-primary" role="button">View</a> 
-                </td>
-                <td>
-                    {{ card_type.known }}
-                </td>
-                <td>
-                    {{ card_type.unknown }} 
-                </td>
-                <td>
-                    <a href="/clear_knowns/card/{{ card_type.id }}" class="btn btn-primary" role="button">Clear</a>
                 </td>
                 <td>
                 </td>

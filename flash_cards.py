@@ -285,14 +285,93 @@ def submit_ordered_test(test_id):
 
     return ""
 
-@app.route('/test/ordered/result/<test_id>', methods=['POST'])
+@app.route('/test/ordered/result/<test_id>')
 def ordered_test_result(test_id):
     if not session.get('logged_in'):
         return redirect(url_for('login'))
-    # get all tests
+    db = get_db()
     # write order of items to answers table
     # calculate results
-    return ""
+    summary_query = """
+    SELECT 
+        created,
+        total_correct,
+        total_incorrect,
+        (total_correct + total_incorrect) as total_questions,
+        percentage 
+    FROM test_results
+    WHERE test_results.ordered_items_id = ?
+    """
+    summary_cursor = db.execute(summary_query, [test_id])
+    summary = summary_cursor.fetchone()
+
+    all_cards_query = """
+    SELECT
+        ordered_items_questions.card_id as card_id
+    FROM ordered_items_tests, ordered_items_questions
+    WHERE ordered_items_questions.test_id = ordered_items_tests.id 
+    AND ordered_items_tests.id = ?
+    """
+    all_cards = db.execute(all_cards_query,[test_id])
+
+    incorrect_answer_cards_query = """
+	SELECT 
+        distinct (ordered_items.card_id) as card_id
+    FROM ordered_items_answers
+    INNER JOIN ordered_items ON ordered_items.id = ordered_items_answers.item_id 
+	WHERE ordered_items_answers.test_id = ?
+	AND ordered_items.position  != ordered_items_answers.position 
+    """
+    incorrect_cards_results = db.execute(incorrect_answer_cards_query, [test_id])
+
+    incorrect_cards = {}
+    for card in incorrect_cards_results:
+        incorrect_cards[card[0]] = card[0]
+
+    user_answer_query = """
+    SELECT 
+	ordered_items.card_id,
+	ordered_items.item,
+	rank () over (
+		partition by ordered_items.card_id
+		ORDER BY ordered_items_answers.position 
+	) rank_window
+    FROM ordered_items_answers, ordered_items
+    WHERE
+    ordered_items_answers.item_id = ordered_items.id 
+    AND test_id = ?
+    """
+    user_answers_result = db.execute(user_answer_query,[test_id])
+
+    user_answers = {}
+    for answer in user_answers_result:
+        if answer[0] not in user_answers:
+            user_answers[answer[0]] = []
+        user_answers[answer[0]].append(answer[1])
+
+    actual_answer_query = """
+    SELECT 
+	ordered_items.card_id,
+	ordered_items.item
+    FROM ordered_items_answers, ordered_items
+    WHERE
+    ordered_items_answers.item_id = ordered_items.id 
+    AND test_id = ?
+    ORDER BY ordered_items.position
+    """
+    actual_answers_result = db.execute(actual_answer_query,[test_id])
+
+    actual_answers = {}
+    for answer in actual_answers_result:
+        if answer[0] not in actual_answers:
+            actual_answers[answer[0]] = []
+        actual_answers[answer[0]].append(answer[1])
+
+    return render_template('ordered_result.html', summary=summary, 
+        all_cards=all_cards,
+        incorrect_cards=incorrect_cards, 
+        user_answers=user_answers,
+        actual_answers=actual_answers)
 
 @app.route('/create/multiple_choice/test/<card_name>')
 def run_test(card_name):

@@ -1,6 +1,90 @@
 {% extends "layout.html" %}
 {% block body %}
 
-    TODO: list the result from an ordered test
+    <h2>Summary</h2>
+
+    <table class="table table-bordered">
+        <tr>
+            <td class="col-md-3"><b>Date and time of test taken</b></td>
+            <td>{{ summary.created }}</td>
+        </tr>
+        <tr>
+            <td class="col-md-3"><b>Correct questions</b></td>
+            <td>{{ summary.total_correct }}</td>
+        </tr>
+        <tr>
+            <td class="col-md-3"><b>Incorrect questions</b></td>
+            <td>{{ summary.total_incorrect }}</td>
+        </tr>
+        <tr>
+            <td class="col-md-3"><b>Total questions</b></td>
+            <td>{{ summary.total_questions }}</td>
+        </tr>
+        <tr>
+            <td class="col-md-3"><b>Percentage</b></td>
+            <td>{{ summary.percentage }}%</td>
+        </tr>
+    </table>
+
+    <h2>Questions</h2> 
+    
+    <table class="table table-bordered">
+    {% for card in all_cards %}
+        {% if card.card_id in incorrect_cards %}
+        <tr>
+            <td colspan=2 style="background-color:red;color: white;">
+                <b>INCORRECT</b>
+            </td>
+        </tr>
+        <tr>
+            <td> 
+                <table>
+                    <tr>
+                        <td><b>answer</b></td>
+                    </tr>
+                    {% for answer in user_answers[card.card_id] %}
+                    <tr>
+                        <td>{{ answer }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </td>
+            <td>
+                <table>
+                    <tr>
+                        <td><b>correct answer</b></td>
+                    </tr>
+                    {% for answer in actual_answers[card.card_id] %}
+                    <tr>
+                        <td>{{ answer }}</td>
+                    </tr>
+                    {% endfor %}
+                </table>
+            </td>
+        </tr>
+        {% else %}
+        <tr>
+            <td colspan=2 style="background-color:green;color: white;">
+                <b>CORRECT</b>
+            </td>
+        </tr>
+        <tr>
+            <td> 
+                <table>
+                {% for answer in user_answers[card.card_id] %}
+                    <tr>
+                        <td>{{ answer }}</td>
+                    </tr>
+                {% endfor %}
+                </table>
+            </td>
+        </tr>
+        {% endif %}
+    {% else %}
+        <tr>
+            <td>NO QUESTIONS FOUND</td>
+        </tr>
+    {% endfor %}
+    </table>
 
 {% endblock %}
