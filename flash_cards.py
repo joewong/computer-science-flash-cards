@@ -1,6 +1,7 @@
 import os
 import sqlite3
 import traceback
+import random
 from flask import Flask, request, session, g, redirect, url_for, abort, \
     render_template, flash
 
@@ -141,10 +142,84 @@ def add_card():
     flash('New card was successfully added.')
     return redirect(url_for('cards'))
 
+@app.route('/create/test/<card_name>')
+def create_cards_test(card_name):
+    if not session.get('logged_in'):
+        return redirect(url_for('login'))
+    questions = 10
+    ordered_questions = random.randrange(0, questions, 1)
+    multiple_choice_questions = questions - ordered_questions 
+    ordered_test_id = create_ordered_questions(ordered_questions, card_name) 
+    multiple_choice_test_id = create_multiple_choice_questions(multiple_choice_questions, card_name)
+    
+    db = get_db()
+    new_test_query = """
+    INSERT INTO card_tests (ordered_id, multiple_choice_id)
+    VALUES(?,?)
+    """
+    test_cursor = db.execute(new_test_query, [ordered_test_id, multiple_choice_test_id])
+    db.commit()
+    test_id = test_cursor.lastrowid
+
+    insert_ordered_questions_query = """
+    INSERT INTO cards_tests_questions (test_id, question_id, question_type, position)
+    SELECT 
+        cards_tests.id as test_id,
+        ordered_items_questions.id as question_id,
+        "ORDERED_QUESTION" as question_type,
+        ROW_NUMBER() OVER (
+			ORDER BY RANDOM()
+		) as position
+    FROM ordered_items_questions, cards_tests
+    WHERE ordered_items_questions.test_id = cards_tests.ordered_id
+    AND cards_tests.id = ?
+    """
+    db.execute(insert_ordered_questions_query, [test_id])
+    db.commit()
+
+    insert_multiple_choice_questions_query = """
+    INSERT INTO cards_tests_questions (test_id, question_id, question_type, position)
+    SELECT
+        cards_tests.id as test_id,
+        test_multiple_choice_cards.id as question_id,
+        "MULTIPLE_CHOICE_QUESTION" as question_type,
+        ROW_NUMBER() OVER (
+			ORDER BY RANDOM()
+		) as position
+    FROM test_multiple_choice_cards, cards_tests
+    WHERE test_multiple_choice_cards.test_multiple_choice_id = cards_tests.multiple_choice_id
+    AND cards_tests.id = ?
+    """
+    db.execute(insert_multiple_choice_questions_query, [test_id])
+    db.commit()
+
+    update_positions_query = """
+    WITH RECURSIVE 
+        cte (i, p) AS (
+            SELECT
+            id,
+            ROW_NUMBER() OVER (
+                ORDER BY RANDOM()
+            ) as pos
+        FROM cards_tests_questions 
+        WHERE test_id = ?)
+    UPDATE cards_tests_questions 
+    SET position = (SELECT cte.p FROM cte 
+    WHERE cte.i = cards_tests_questions.id )
+    """
+    db.execute(update_positions_query, [test_id])
+    db.commit()
+
+    return redirect('/sit/test/' + str(test_id)) 
+
 @app.route('/create/ordered/test/<card_name>')
 def create_ordered_test(card_name):
     if not session.get('logged_in'):
         return redirect(url_for('login'))
+    test_id = create_ordered_questions(10, card_name) 
+    return redirect('/sit/ordered/test/' + str(test_id)) 
+
+def create_ordered_questions(total_questions, card_name):
     db = get_db()
     create_test_query = """
     INSERT INTO ordered_items_tests (type_id)
@@ -165,12 +240,12 @@ def create_ordered_test(card_name):
     AND card_types.id = ordered_items_tests.type_id
     AND ordered_items_tests.id = ?
     ORDER BY RANDOM()
-    LIMIT 10
+    LIMIT ?
     """
-    db.execute(question_cards_query, [test_id])
+    db.execute(question_cards_query, [test_id, total_questions])
     db.commit()
+    return test_id
 
-    return redirect('/sit/ordered/test/' + str(test_id)) 
 
 @app.route('/sit/ordered/test/<test_id>')
 def sit_ordered_test(test_id):
@@ -377,7 +452,10 @@ def ordered_test_result(test_id):
 def run_test(card_name):
     if not session.get('logged_in'):
         return redirect(url_for('login'))
+    test_id = create_multiple_choice_questions(10, card_name)
+    return redirect('/test/sit/' + str(test_id))
 
+def create_multiple_choice_questions(total_questions, card_name):
     # Create a new test 
     db = get_db()
     create_test_query = """
@@ -404,9 +482,9 @@ def run_test(card_name):
     AND test_multiple_choice.id = ?
     AND card_types.card_name = ?
     ORDER BY RANDOM()
-    LIMIT 10
+    LIMIT ?
     """
-    db.execute(create_test_questions_query, [test_id, card_name])
+    db.execute(create_test_questions_query, [test_id, card_name, total_questions])
     db.commit()
 
     # Insert the randomised multiple choice ordering
@@ -432,7 +510,7 @@ def run_test(card_name):
     db.execute(create_test_questions_order_query, [test_id])
     db.commit()
 
-    return redirect('/test/sit/' + str(test_id))
+    return test_id
 
 @app.route('/test/sit/<test_id>')
 def sit_test(test_id):

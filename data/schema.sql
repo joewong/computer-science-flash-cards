@@ -14,18 +14,6 @@ CREATE TABLE "card_types" (
 	"card_name"	TEXT
 );
 
--- General cards test which is made of smaller question tests
-DROP TABLE IF EXISTS cards_tests;
-CREATE TABLE "cards_tests" (
-  "id"	INTEGER PRIMARY KEY AUTOINCREMENT,
-  "multiple_choice_test_id" INTEGER,
-  "ordered_test_id" INTEGER,
-  "tree_test_id" INTEGER,
-  "test_type" TEXT,
-  FOREIGN KEY (multiple_choice_test_id) REFERENCES test_multiple_choice(id),
-  FOREIGN KEY (ordered_test_id) REFERENCES ordered_items_tests(id)
-);
-
 -- Represents a multiple choice question
 DROP TABLE IF EXISTS card_multiple_choices;
 CREATE TABLE "card_multiple_choices" (
@@ -147,4 +135,29 @@ CREATE TABLE "test_results" (
   "percentage" REAL NOT NULL,
   FOREIGN KEY (multiple_choice_id) REFERENCES test_multiple_choice(id),
   FOREIGN KEY (ordered_items_id) REFERENCES ordered_items_tests(id)
+)
+
+
+------------------------------------------------------------------------------
+-- CARD TEST TABLES
+------------------------------------------------------------------------------
+
+-- General cards test which is made of smaller question tests
+DROP TABLE IF EXISTS cards_tests;
+CREATE TABLE "cards_tests" (
+  "id"	INTEGER PRIMARY KEY AUTOINCREMENT,
+  "multiple_choice_id" INTEGER,
+  "ordered_id" INTEGER,
+  FOREIGN KEY (multiple_choice_id) REFERENCES test_multiple_choice(id),
+  FOREIGN KEY (ordered_id) REFERENCES ordered_items_tests(id)
+);
+
+DROP TABLE IF EXISTS cards_tests_questions;
+CREATE TABLE "cards_tests_questions" (
+  "id" INTEGER PRIMARY KEY AUTOINCREMENT,
+  "test_id" INTEGER NOT NULL,
+  "question_id" INTEGER NOT NULL,
+  "question_type" TEXT NOT NULL,
+  "position" INTEGER NOT NULL,
+  FOREIGN KEY (test_id) REFERENCES cards_tests(id)
 )
